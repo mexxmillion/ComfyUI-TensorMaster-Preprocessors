@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "artifacts": [
+    {
+      "group": "reference-isolate",
+      "repo": "IDEA-Research/grounding-dino-tiny",
+      "revision": "a2bb814dd30d776dcf7e30523b00659f4f141c71",
+      "file": "config.json",
+      "local_dir": "tensor-master-preprocessors/grounding-dino-tiny",
+      "size": 1644,
+      "sha256": "eec82c5ab66e16df12a9a212e68ac011779927c2536cf9078658e35d85f0c67a"
+    },
+    {
+      "group": "reference-isolate",
+      "repo": "IDEA-Research/grounding-dino-tiny",
+      "revision": "a2bb814dd30d776dcf7e30523b00659f4f141c71",
+      "file": "model.safetensors",
+      "local_dir": "tensor-master-preprocessors/grounding-dino-tiny",
+      "size": 689359096,
+      "sha256": "1a2412ef99bd74bcd3c2a246fa1e48581f8889a1300c9051974741314fc042f3"
+    },
+    {
+      "group": "reference-isolate",
+      "repo": "IDEA-Research/grounding-dino-tiny",
+      "revision": "a2bb814dd30d776dcf7e30523b00659f4f141c71",
+      "file": "preprocessor_config.json",
+      "local_dir": "tensor-master-preprocessors/grounding-dino-tiny",
+      "size": 457,
+      "sha256": "8454179ba95e2ad22947835aad7b45862a601fc0055ab88bf1ee70892d3aea60"
+    },
+    {
+      "group": "reference-isolate",
+      "repo": "IDEA-Research/grounding-dino-tiny",
+      "revision": "a2bb814dd30d776dcf7e30523b00659f4f141c71",
+      "file": "special_tokens_map.json",
+      "local_dir": "tensor-master-preprocessors/grounding-dino-tiny",
+      "size": 125,
+      "sha256": "b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3"
+    },
+    {
+      "group": "reference-isolate",
+      "repo": "IDEA-Research/grounding-dino-tiny",
+      "revision": "a2bb814dd30d776dcf7e30523b00659f4f141c71",
+      "file": "tokenizer.json",
+      "local_dir": "tensor-master-preprocessors/grounding-dino-tiny",
+      "size": 711396,
+      "sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+    },
+    {
+      "group": "reference-isolate",
+      "repo": "IDEA-Research/grounding-dino-tiny",
+      "revision": "a2bb814dd30d776dcf7e30523b00659f4f141c71",
+      "file": "tokenizer_config.json",
+      "local_dir": "tensor-master-preprocessors/grounding-dino-tiny",
+      "size": 1237,
+      "sha256": "d40ab645b68211910b9170d22433d43186a6ec8ee6fd10ba170524b25bf4fb56"
+    },
+    {
+      "group": "reference-isolate",
+      "repo": "IDEA-Research/grounding-dino-tiny",
+      "revision": "a2bb814dd30d776dcf7e30523b00659f4f141c71",
+      "file": "vocab.txt",
+      "local_dir": "tensor-master-preprocessors/grounding-dino-tiny",
+      "size": 231508,
+      "sha256": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3"
+    },
+    {
+      "group": "reference-isolate",
+      "repo": "facebook/sam2.1-hiera-tiny",
+      "revision": "de431c4043854a71d8101e17995dfe596bf101a5",
+      "file": "config.json",
+      "local_dir": "tensor-master-preprocessors/sam2.1-hiera-tiny",
+      "size": 5695,
+      "sha256": "860aff9751b139d83a4ad7df1e5535416fded533e0ead02625edbefcb9953cce"
+    },
+    {
+      "group": "reference-isolate",
+      "repo": "facebook/sam2.1-hiera-tiny",
+      "revision": "de431c4043854a71d8101e17995dfe596bf101a5",
+      "file": "model.safetensors",
+      "local_dir": "tensor-master-preprocessors/sam2.1-hiera-tiny",
+      "size": 155908064,
+      "sha256": "48c14467e5cf9e51870511feb72c89688e82dd74523142c0538b663e193ac2a7"
+    },
+    {
+      "group": "reference-isolate",
+      "repo": "facebook/sam2.1-hiera-tiny",
+      "revision": "de431c4043854a71d8101e17995dfe596bf101a5",
+      "file": "preprocessor_config.json",
+      "local_dir": "tensor-master-preprocessors/sam2.1-hiera-tiny",
+      "size": 683,
+      "sha256": "6ebf229ee259368ce4a8d4f2fe893a72b053023710853e257253939e601f583d"
+    },
+    {
+      "group": "reference-isolate",
+      "repo": "facebook/sam2.1-hiera-tiny",
+      "revision": "de431c4043854a71d8101e17995dfe596bf101a5",
+      "file": "processor_config.json",
+      "local_dir": "tensor-master-preprocessors/sam2.1-hiera-tiny",
+      "size": 95,
+      "sha256": "f8a68e865cfad115c1c2763f3d93eca7b1c622da06da2a9273eb437fb2389b6d"
+    }
+  ]
+}
