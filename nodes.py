@@ -79,6 +79,7 @@ class TMIsolateReference:
             detector.cpu()
             detector = None
             mm.soft_empty_cache()
+
             sam_processor = Sam2Processor.from_pretrained(sam_path, local_files_only=True)
             segmenter = Sam2Model.from_pretrained(sam_path, local_files_only=True,
                                                 use_safetensors=True).to(device).eval()
@@ -88,7 +89,8 @@ class TMIsolateReference:
             mask = masks.reshape(-1, source.height, source.width).any(dim=0).float()
             if not mask.any():
                 raise ValueError("The selected subject produced an empty mask. Try another description.")
-            rgba = torch.cat((image[0, :, :, :3].cpu(), mask.unsqueeze(-1)), dim=-1).unsqueeze(0)
+            foreground = image[0, :, :, :3].cpu() * mask.unsqueeze(-1)
+            rgba = torch.cat((foreground, mask.unsqueeze(-1)), dim=-1).unsqueeze(0)
             return (rgba, mask.unsqueeze(0))
         finally:
             inputs = output = sam_inputs = prediction = None
@@ -97,3 +99,34 @@ class TMIsolateReference:
             if segmenter is not None:
                 segmenter.cpu()
             mm.soft_empty_cache()
+
+class TMCompositeReference:
+    """Composite the isolated RGBA image into the exact RGB input used downstream."""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {'required': {'image': ('IMAGE',),
+                'background': (['gray', 'white', 'black'],),
+                'crop': ('BOOLEAN', {'default': True})}}
+
+    RETURN_TYPES = ('IMAGE',)
+    RETURN_NAMES = ('rgb_reference',)
+    FUNCTION = 'composite'
+    CATEGORY = 'Tensor Master/Reference preprocessing'
+
+    def composite(self, image, background='gray', crop=True):
+        if image.shape[0] != 1 or image.shape[-1] != 4:
+            raise ValueError('Composite reference requires one RGBA isolation result.')
+        alpha = image[..., 3:4].clamp(0, 1)
+        if not (alpha > 0).any():
+            raise ValueError('Cannot composite an empty foreground mask.')
+        if crop:
+            positions = torch.nonzero(alpha[0, :, :, 0] > 0, as_tuple=False)
+            top, left = positions.min(dim=0).values.tolist()
+            bottom, right = (positions.max(dim=0).values + 1).tolist()
+            pad = max(4, round(max(right - left, bottom - top) * 0.05))
+            image = image[:, max(0, top-pad):min(image.shape[1], bottom+pad),
+                          max(0, left-pad):min(image.shape[2], right+pad)]
+            alpha = image[..., 3:4].clamp(0, 1)
+        color = {'gray': 127 / 255, 'white': 1.0, 'black': 0.0}[background]
+        return (image[..., :3] * alpha + color * (1 - alpha),)
+

@@ -99,6 +99,33 @@
       "local_dir": "tensor-master-preprocessors/sam2.1-hiera-tiny",
       "size": 95,
       "sha256": "f8a68e865cfad115c1c2763f3d93eca7b1c622da06da2a9273eb437fb2389b6d"
+    },
+    {
+      "group": "reference-isolate",
+      "repo": "depth-anything/Depth-Anything-V2-Small-hf",
+      "revision": "5426e4f0f36572d16453bbda7a8389317b1bef99",
+      "file": "config.json",
+      "local_dir": "tensor-master-preprocessors/depth-anything-v2-small",
+      "size": 950,
+      "sha256": "c56698d3643dde1f83ea2212759e6b31a22b8f827246a36dd007ee8a22b3ff75"
+    },
+    {
+      "group": "reference-isolate",
+      "repo": "depth-anything/Depth-Anything-V2-Small-hf",
+      "revision": "5426e4f0f36572d16453bbda7a8389317b1bef99",
+      "file": "model.safetensors",
+      "local_dir": "tensor-master-preprocessors/depth-anything-v2-small",
+      "size": 99173660,
+      "sha256": "3152477ce0d8d6978d76b995120de97cb5b928701fd0f817769f59e249a16b70"
+    },
+    {
+      "group": "reference-isolate",
+      "repo": "depth-anything/Depth-Anything-V2-Small-hf",
+      "revision": "5426e4f0f36572d16453bbda7a8389317b1bef99",
+      "file": "preprocessor_config.json",
+      "local_dir": "tensor-master-preprocessors/depth-anything-v2-small",
+      "size": 775,
+      "sha256": "d41175c0d889477ca8fc67191e540faef14baf6275157b3fdecf78469e6bbf84"
     }
   ]
 }
