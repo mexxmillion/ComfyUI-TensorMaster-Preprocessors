@@ -18,8 +18,8 @@ reusable asset without starting generation. Original inputs remain available.
 
 ## Reuse and caching
 
-**Reuse cached results** is on by default. Isolation masks and depth maps have
-separate content/settings/model-version cache keys. Changing background color or
+**Reuse cached results** is off by default. Enable it per reference to reuse results. Isolation masks and depth maps have
+separate content/settings/model-version cache keys. Source bytes are checked on every run, including replacements with the same filename. Changing background color or
 crop reuses the existing mask; changing isolation text does not recompute depth.
 Turning reuse off forces inference. Settings persist in drafts and generation
 recipes, independent of whether preprocessing has run yet.

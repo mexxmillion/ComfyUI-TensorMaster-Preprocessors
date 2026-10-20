@@ -1,3 +1,5 @@
+import hashlib
+import math
 import importlib.util
 from pathlib import Path
 import sys
@@ -19,6 +21,37 @@ from tm_preprocessors.nodes import TMIsolateReference
 
 
 class CacheTests(unittest.TestCase):
+    def test_same_filename_replacement_changes_hash_and_never_uses_old_results(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'input/h3_mobile/source.png'
+            source.parent.mkdir(parents=True)
+            paths = SimpleNamespace(get_input_directory=lambda: str(root / 'input'),
+                                    get_output_directory=lambda: str(root / 'output'))
+            rgba = torch.ones((1, 20, 20, 4))
+            with patch.dict(sys.modules, {'folder_paths': paths}), patch.object(TMIsolateReference, 'isolate', return_value=(rgba, rgba[..., 3])) as inference:
+                Image.new('RGB', (20, 20), 'red').save(source)
+                first_hash = TMPrepareReference.IS_CHANGED('h3_mobile/source.png', use_cache=True)
+                TMPrepareReference().prepare('h3_mobile/source.png', use_cache=True)
+                TMPrepareReference().prepare('h3_mobile/source.png', use_cache=True)
+                self.assertEqual(inference.call_count, 1)
+                Image.new('RGB', (20, 20), 'blue').save(source)
+                second_hash = TMPrepareReference.IS_CHANGED('h3_mobile/source.png', use_cache=True)
+                self.assertNotEqual(first_hash, second_hash)
+                TMPrepareReference().prepare('h3_mobile/source.png', use_cache=True)
+                self.assertEqual(inference.call_count, 2)
+                with self.assertRaisesRegex(ValueError, 'changed after this job'):
+                    TMPrepareReference().prepare('h3_mobile/source.png', use_cache=True,
+                                                source_sha256=first_hash, cache_key='c' * 64)
+                self.assertEqual(inference.call_count, 2)
+                # Disabled by default: neither Comfy execution caching nor disk reuse.
+                self.assertTrue(math.isnan(TMPrepareReference.IS_CHANGED('h3_mobile/source.png')))
+                self.assertFalse(TMPrepareReference.INPUT_TYPES()['required']['use_cache'][1]['default'])
+                for _ in range(2):
+                    result = TMPrepareReference().prepare('h3_mobile/source.png')
+                    self.assertEqual(result['ui']['reference_cache'], [])
+                self.assertEqual(inference.call_count, 4)
+
     def test_staged_isolation_and_depth_skip_both_models_and_produce_rgb(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -39,7 +72,7 @@ class CacheTests(unittest.TestCase):
                  patch.object(TMDepthReference, 'depth', side_effect=AssertionError('depth model should not load')):
                 for color, value in [('white', 1.0), ('gray', 127 / 255), ('black', 0.0)]:
                     result = TMPrepareReference().prepare('h3_mobile/source.png', depth=True, background=color,
-                        crop=False, cache_key='c' * 64, isolation_key='a' * 64, depth_key='b' * 64,
+                        crop=False, use_cache=True, source_sha256=hashlib.sha256((source / 'source.png').read_bytes()).hexdigest(), cache_key='c' * 64, isolation_key='a' * 64, depth_key='b' * 64,
                         cached_isolation='h3_mobile/preprocessed-cache/' + 'a' * 64 + '-rgba.png',
                         cached_depth='h3_mobile/preprocessed-cache/' + 'b' * 64 + '-depth.png')
                     rgb, full, mask = result['result']
@@ -60,7 +93,8 @@ class CacheTests(unittest.TestCase):
                                     get_output_directory=lambda: str(root / 'output'))
             rgba = torch.ones((1, 20, 20, 4))
             with patch.dict(sys.modules, {'folder_paths': paths}), patch.object(TMIsolateReference, 'isolate', return_value=(rgba, rgba[..., 3])) as inference:
-                arguments = dict(source_file='h3_mobile/source.png', cache_key='c' * 64,
+                arguments = dict(source_file='h3_mobile/source.png', use_cache=True,
+                                 source_sha256=hashlib.sha256((source / 'source.png').read_bytes()).hexdigest(), cache_key='c' * 64,
                                  isolation_key='a' * 64, depth_key='b' * 64)
                 first = TMPrepareReference().prepare(**arguments)['result'][0]
                 second = TMPrepareReference().prepare(**arguments)['result'][0]

@@ -1,5 +1,6 @@
 """A single queued reference step with reusable isolation and depth caches."""
 import hashlib
+import io
 from pathlib import Path
 from uuid import uuid4
 
@@ -84,21 +85,37 @@ class TMPrepareReference:
             'selection': (['best', 'all'] + [str(i) for i in range(1, 21)],),
             'depth': ('BOOLEAN', {'default': False}), 'invert_depth': ('BOOLEAN', {'default': False}),
             'background': (['gray', 'white', 'black'],), 'crop': ('BOOLEAN', {'default': True}),
-            'use_cache': ('BOOLEAN', {'default': True}),
+            'use_cache': ('BOOLEAN', {'default': False}),
             }, 'optional': {name: ('STRING', {'default': ''}) for name in
-                ('cache_key', 'isolation_key', 'depth_key', 'cached_isolation', 'cached_depth')}}
+                ('cache_key', 'isolation_key', 'depth_key', 'cached_isolation', 'cached_depth', 'source_sha256')}}
 
     RETURN_TYPES = ('IMAGE', 'IMAGE', 'MASK')
     RETURN_NAMES = ('rgb_reference', 'full_cutout_rgba', 'full_foreground_mask')
     FUNCTION = 'prepare'
     CATEGORY = 'Tensor Master/Reference preprocessing'
 
+    @classmethod
+    def IS_CHANGED(cls, source_file, use_cache=False, **kwargs):
+        # Comfy otherwise sees only a filename string and can bypass prepare()
+        # entirely when that file has been replaced in place.
+        if not use_cache:
+            return float('nan')
+        with input_file(source_file).open('rb') as stream:
+            return hashlib.file_digest(stream, 'sha256').hexdigest()
+
     def prepare(self, source_file, isolate=True, text='person', confidence=0.25, selection='best',
-                depth=False, invert_depth=False, background='gray', crop=True, use_cache=True,
-                cache_key='', isolation_key='', depth_key='', cached_isolation='', cached_depth=''):
+                depth=False, invert_depth=False, background='gray', crop=True, use_cache=False,
+                cache_key='', isolation_key='', depth_key='', cached_isolation='', cached_depth='', source_sha256=''):
         import folder_paths
         path = input_file(source_file)
-        with Image.open(path) as source:
+        source_bytes = path.read_bytes()
+        content = hashlib.sha256(source_bytes).hexdigest()
+        if source_sha256 and content != source_sha256:
+            raise ValueError('Reference image changed after this job was submitted. Submit again to process the replacement.')
+        # Unverified external keys cannot authorize reuse for a different source.
+        if cache_key and not source_sha256:
+            cache_key = isolation_key = depth_key = cached_isolation = cached_depth = ''
+        with Image.open(io.BytesIO(source_bytes)) as source:
             source = ImageOps.exif_transpose(source).convert('RGB')
             if source.width * source.height > 20_000_000:
                 raise ValueError('Resize the reference below 20 megapixels.')
@@ -106,8 +123,6 @@ class TMPrepareReference:
         # The controller supplies content/model/settings hashes. Direct Comfy use
         # computes its own keys using the same pinned model inventory as a version.
         if not cache_key:
-            with path.open('rb') as stream:
-                content = hashlib.file_digest(stream, 'sha256').hexdigest()
             version = Path(__file__).with_name('models.lock.json').read_bytes()
             isolation_key = hashlib.sha256(version + f'{content}:{text}:{confidence}:{selection}'.encode()).hexdigest()
             depth_key = hashlib.sha256(version + f'{content}:depth:{invert_depth}'.encode()).hexdigest()
