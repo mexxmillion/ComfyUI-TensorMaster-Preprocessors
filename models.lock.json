@@ -126,6 +126,33 @@
       "local_dir": "tensor-master-preprocessors/depth-anything-v2-small",
       "size": 775,
       "sha256": "d41175c0d889477ca8fc67191e540faef14baf6275157b3fdecf78469e6bbf84"
+    },
+    {
+      "group": "face-eraser",
+      "repo": "jonathandinu/face-parsing",
+      "revision": "758b82e15a0178c9db39c1ff666a8b56e3a550c8",
+      "file": "config.json",
+      "local_dir": "face_eraser",
+      "size": 1689,
+      "sha256": "01d82e818569beda6aec804642e34ce187bed43326337d52ce370ff015964d68"
+    },
+    {
+      "group": "face-eraser",
+      "repo": "jonathandinu/face-parsing",
+      "revision": "758b82e15a0178c9db39c1ff666a8b56e3a550c8",
+      "file": "preprocessor_config.json",
+      "local_dir": "face_eraser",
+      "size": 374,
+      "sha256": "e5a25d8fc054bf780be930e161b47d188bec1b0bf0a44fd5fdfb3f3312c0be0b"
+    },
+    {
+      "group": "face-eraser",
+      "repo": "jonathandinu/face-parsing",
+      "revision": "758b82e15a0178c9db39c1ff666a8b56e3a550c8",
+      "file": "model.safetensors",
+      "local_dir": "face_eraser",
+      "size": 338580732,
+      "sha256": "c2bec795a8c243db71bd95be538fd62559003566466c71237e45c99b920f4b62"
     }
   ]
 }

@@ -7,3 +7,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {"TMIsolateReference": "Tensor Master · Isolate re
                             "TMCompositeReference": "Tensor Master · RGB reference background",
                             "TMDepthReference": "Tensor Master · Depth Anything V2 Small",
                             "TMPrepareReference": "Tensor Master · Prepare reference (cached)"}
+
+from .face_eraser import FaceHairEraser
+
+NODE_CLASS_MAPPINGS["FaceHairEraser"] = FaceHairEraser
+NODE_DISPLAY_NAME_MAPPINGS["FaceHairEraser"] = "Tensor Master · Face + Hair Eraser (Gauss Fill)"
