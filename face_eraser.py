@@ -64,6 +64,14 @@ class FaceHairEraser:
             "extra_mask": ("MASK", {"tooltip": "White adds to the automatic mask."}),
             "mask_only": ("BOOLEAN", {"default": False,
                          "tooltip": "Use extra_mask alone; skips the segmentation model."}),
+            "segmentation_confidence": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0,
+                "step": 0.05, "tooltip": "Higher rejects uncertain face/hair pixels. 0 preserves the original behavior."}),
+            "detected_faces_only": ("BOOLEAN", {"default": False,
+                "tooltip": "Only segment crops around detected frontal faces. Reduces false masks elsewhere; may miss profiles."}),
+            "detector_neighbors": ("INT", {"default": 5, "min": 1, "max": 30,
+                "tooltip": "Higher requires stronger agreement from the face detector, rejecting weak detections."}),
+            "min_face_size": ("INT", {"default": 24, "min": 8, "max": 2048,
+                "tooltip": "Ignore face detections smaller than this many pixels. Applies to crop detection only."}),
         }}
 
     RETURN_TYPES = ("IMAGE", "MASK", "IMAGE")
@@ -94,36 +102,46 @@ class FaceHairEraser:
             model_path, local_files_only=True, use_safetensors=True).eval()
         return processor, model
 
-    def segment(self, image, include_neck, include_hat, processor, model):
+    def segment(self, image, include_neck, include_hat, processor, model,
+                segmentation_confidence=0.0, detected_faces_only=False,
+                detector_neighbors=5, min_face_size=24):
         rgb = (image.clip(0, 1) * 255).astype(np.uint8)
-        mask = self.parse_crop(rgb, include_neck, include_hat, processor, model)
+        mask = (np.zeros(rgb.shape[:2], dtype=np.float32) if detected_faces_only else
+                self.parse_crop(rgb, include_neck, include_hat, processor, model, segmentation_confidence))
         # Re-parse detected faces with hair context: a full-frame parser can
         # miss a small face next to a much larger portrait in reference sheets.
         gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
         detector = cv2.CascadeClassifier(str(Path(cv2.data.haarcascades) / "haarcascade_frontalface_default.xml"))
-        for x, y, w, h in detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(24, 24)):
+        for x, y, w, h in detector.detectMultiScale(gray, scaleFactor=1.1,
+                minNeighbors=detector_neighbors, minSize=(min_face_size, min_face_size)):
             left, top = max(0, x - w), max(0, y - h)
             right, bottom = min(rgb.shape[1], x + 2 * w), min(rgb.shape[0], y + 3 * h)
-            parsed = self.parse_crop(rgb[top:bottom, left:right], include_neck, include_hat, processor, model)
+            parsed = self.parse_crop(rgb[top:bottom, left:right], include_neck, include_hat,
+                                     processor, model, segmentation_confidence)
             mask[top:bottom, left:right] = np.maximum(mask[top:bottom, left:right], parsed)
         return mask
 
-    def parse_crop(self, rgb, include_neck, include_hat, processor, model):
+    def parse_crop(self, rgb, include_neck, include_hat, processor, model, segmentation_confidence=0.0):
         pil = Image.fromarray(rgb)
         inputs = processor(images=pil, return_tensors="pt")
         logits = model(**inputs).logits
-        labels = F.interpolate(logits, size=rgb.shape[:2], mode="bilinear",
-                               align_corners=False).argmax(1)[0].detach().numpy()
+        logits = F.interpolate(logits, size=rgb.shape[:2], mode="bilinear", align_corners=False)
+        labels = logits.argmax(1)[0].detach().numpy()
         selected = list(range(1, 14)) + [15]
         if include_hat:
             selected.append(14)
         if include_neck:
             selected.extend([16, 17])
-        return np.isin(labels, selected).astype(np.float32)
+        mask = np.isin(labels, selected)
+        if segmentation_confidence > 0:
+            confidence = logits.softmax(1).amax(1)[0].detach().numpy()
+            mask &= confidence >= segmentation_confidence
+        return mask.astype(np.float32)
 
     def erase(self, image, fill_mode="gaussian surroundings", grow=16, feather=12,
               fill_sigma=48.0, include_neck=False, include_hat=True, neutral_value=0.5,
-              extra_mask=None, mask_only=False):
+              extra_mask=None, mask_only=False, segmentation_confidence=0.0,
+              detected_faces_only=False, detector_neighbors=5, min_face_size=24):
         if image.shape[-1] != 3:
             raise ValueError("Face Eraser expects an RGB IMAGE; convert RGBA to RGB first.")
         if mask_only and extra_mask is None:
@@ -142,7 +160,9 @@ class FaceHairEraser:
         processor, model = (None, None) if mask_only else self.load_parser()
         results, masks, previews = [], [], []
         for i, frame in enumerate(image.detach().float().cpu().numpy()):
-            mask = np.zeros(frame.shape[:2], dtype=np.float32) if mask_only else self.segment(frame, include_neck, include_hat, processor, model)
+            mask = (np.zeros(frame.shape[:2], dtype=np.float32) if mask_only else
+                    self.segment(frame, include_neck, include_hat, processor, model,
+                                 segmentation_confidence, detected_faces_only, detector_neighbors, min_face_size))
             if extra is not None:
                 mask = np.maximum(mask, extra[0 if len(extra) == 1 else i])
             alpha = prepare_mask(mask, grow, feather)

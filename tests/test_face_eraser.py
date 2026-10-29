@@ -1,4 +1,6 @@
 import unittest
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import numpy as np
 import torch
@@ -13,6 +15,33 @@ FaceHairEraser, gauss_fill, prepare_mask = module.FaceHairEraser, module.gauss_f
 
 
 class FillTests(unittest.TestCase):
+    def test_confidence_rejects_uncertain_pixels(self):
+        logits = torch.zeros(1, 19, 2, 2)
+        logits[0, 1, 0, 0] = 1
+        logits[0, 1, 0, 1] = 10
+        logits[0, 0, 1, :] = 20
+        model = Mock(return_value=SimpleNamespace(logits=logits))
+        processor = Mock(return_value={})
+        node = FaceHairEraser()
+        rgb = np.zeros((2, 2, 3), np.uint8)
+        original = node.parse_crop(rgb, False, True, processor, model)
+        strict = node.parse_crop(rgb, False, True, processor, model, 0.8)
+        np.testing.assert_array_equal(original, [[1, 1], [0, 0]])
+        np.testing.assert_array_equal(strict, [[0, 1], [0, 0]])
+
+    def test_crop_only_skips_full_frame_and_forwards_detector_settings(self):
+        node = FaceHairEraser()
+        detector = Mock()
+        detector.detectMultiScale.return_value = ()
+        with patch.object(module.cv2, "CascadeClassifier", return_value=detector), \
+                patch.object(node, "parse_crop") as parse:
+            mask = node.segment(np.zeros((96, 96, 3), np.float32), False, True,
+                                None, None, 0.8, True, 12, 64)
+        parse.assert_not_called()
+        self.assertFalse(mask.any())
+        self.assertEqual(detector.detectMultiScale.call_args.kwargs["minNeighbors"], 12)
+        self.assertEqual(detector.detectMultiScale.call_args.kwargs["minSize"], (64, 64))
+
     def test_removed_pixels_cannot_influence_fill(self):
         rng = np.random.default_rng(12)
         original = rng.random((96, 96, 3), dtype=np.float32)

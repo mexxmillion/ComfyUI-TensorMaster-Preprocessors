@@ -87,6 +87,23 @@ Segmentation runs on CPU, with one temporary model per execution and no VRAM use
 The `FaceHairEraser` node ID is preserved from the standalone version. Use this
 pack instead of loading both copies.
 
+### Reduce over-detection
+
+Start with `detected_faces_only = true`, `segmentation_confidence = 0.65`,
+`detector_neighbors = 8`, and `grow = 4`. Higher segmentation confidence rejects
+uncertain pixels in both full-frame and crop parsing. Crop-only mode skips
+full-frame parsing, limiting segmentation to the contextual crops around detected
+frontal faces; those crops include hair and some surrounding image. Higher
+detector neighbors rejects weaker face boxes. Increase `min_face_size` to ignore
+tiny detections (in input image pixels). Detector settings only affect face
+crops; full-frame parsing still runs unless crop-only mode is enabled.
+
+`grow` expands the mask and `feather` extends its blending edge, so reduce those
+if detection is correct but the removed area is too large. Higher confidence
+can miss real hair/face pixels. Enclosed mask holes are filled; inspect the final
+preview. Defaults preserve existing workflows, and `extra_mask` is unaffected
+by detection thresholds.
+
 Run `python sync_models.py --models-dir /path/to/ComfyUI/models` to install the
 pinned, SHA-256 verified face parsing files along with the existing models.
 Inference is offline. Existing `models/face_eraser` files are reused after
