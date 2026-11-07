@@ -1,0 +1,20 @@
+.tm-state-dialog {
+    color:var(--input-text, #ddd); background:var(--comfy-menu-bg, #252525);
+    border:1px solid var(--border-color, #555); border-radius:8px;
+    width:min(620px, 90vw); max-height:85vh; padding:22px; font:13px/1.5 Arial,sans-serif;
+}
+.tm-state-dialog::backdrop { background:#0009; }
+.tm-state-dialog h2 { margin:0; font-size:18px; }
+.tm-state-dialog p { color:var(--descrip-text, #aaa); }
+.tm-state-rows { max-height:50vh; overflow:auto; margin:16px 0; }
+.tm-state-row { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
+.tm-state-row span { min-width:60px; }
+.tm-state-dialog input, .tm-state-dialog button {
+    background:var(--comfy-input-bg, #191919); color:inherit; border:1px solid var(--border-color, #555);
+    border-radius:4px; padding:8px 10px; font:inherit;
+}
+.tm-state-dialog input { flex:1; min-width:0; }
+.tm-state-dialog button { cursor:pointer; }
+.tm-state-dialog button:disabled { opacity:.35; cursor:default; }
+.tm-state-dialog :focus-visible { outline:2px solid Highlight; outline-offset:2px; }
+.tm-state-dialog footer { display:flex; justify-content:flex-end; gap:8px; }

@@ -15,3 +15,24 @@ from .face_eraser import FaceHairEraser
 
 NODE_CLASS_MAPPINGS["FaceHairEraser"] = FaceHairEraser
 NODE_DISPLAY_NAME_MAPPINGS["FaceHairEraser"] = "Tensor Master · Face + Hair Eraser (Gauss Fill)"
+
+from .reference_manager.node import TMH3ReferenceManager
+
+NODE_CLASS_MAPPINGS['TMH3ReferenceManager'] = TMH3ReferenceManager
+NODE_DISPLAY_NAME_MAPPINGS['TMH3ReferenceManager'] = 'TM · H3 Reference Manager'
+WEB_DIRECTORY = './web'
+
+from .face_cover import TMFaceCover
+
+NODE_CLASS_MAPPINGS['TMFaceCover'] = TMFaceCover
+NODE_DISPLAY_NAME_MAPPINGS['TMFaceCover'] = 'TM · Face Cover (solid ellipse)'
+
+from .lora_loader import TMMultiLora
+
+NODE_CLASS_MAPPINGS['TMMultiLora'] = TMMultiLora
+NODE_DISPLAY_NAME_MAPPINGS['TMMultiLora'] = 'TM · Power LoRA'
+
+from .state_switch import TMStateMenu, TMStateSwitch
+
+NODE_CLASS_MAPPINGS.update(TMStateMenu=TMStateMenu, TMStateSwitch=TMStateSwitch)
+NODE_DISPLAY_NAME_MAPPINGS.update(TMStateMenu='TM · State Menu', TMStateSwitch='TM · State Switch')

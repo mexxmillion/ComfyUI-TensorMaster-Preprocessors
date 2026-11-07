@@ -1,4 +1,99 @@
-# Tensor Master reference preprocessors
+# Tensor Master nodes for ComfyUI
+
+Reference editing, a compact multi-LoRA loader, and synchronized mode switches
+for editable ComfyUI workflows. Runs inside ComfyUI; no Tensor Master or Comfy
+Commander account is required. Uses the current ComfyUI V3 node API.
+
+## Quick install
+
+In **ComfyUI-Manager**, choose **Install via Git URL** and paste:
+
+```text
+https://github.com/mexxmillion/ComfyUI-TensorMaster-Preprocessors
+```
+
+Restart ComfyUI and hard-refresh the browser with **Ctrl+Shift+R**. Search for
+`TM` in the node picker. This repository can be installed directly by URL;
+it does not need a Comfy Registry listing.
+
+For a manual install, run from your ComfyUI directory using its Python environment:
+
+```sh
+git clone https://github.com/mexxmillion/ComfyUI-TensorMaster-Preprocessors.git custom_nodes/ComfyUI-TensorMaster-Preprocessors
+python -m pip install -r custom_nodes/ComfyUI-TensorMaster-Preprocessors/requirements.txt
+```
+
+Windows portable users: run the clone command from the `ComfyUI` folder, then
+run this from the containing `ComfyUI_windows_portable` folder:
+
+```powershell
+.\python_embeded\python.exe -m pip install -r .\ComfyUI\custom_nodes\ComfyUI-TensorMaster-Preprocessors\requirements.txt
+```
+
+| Node | What it does |
+| --- | --- |
+| **TM · H3 Reference Manager** | Upload and edit image, video, and audio references, with a full Reference Studio editor. |
+| **TM · Power LoRA** | Add any number of installed LoRAs; one strength slider controls model and CLIP together. |
+| **TM · State Menu** | Create a named dropdown for your generation modes. |
+| **TM · State Switch** | Grow matching inputs and evaluate only the selected branch; drive several switches from one menu. |
+| **TM · Face Cover** | Cover detected faces with solid shapes using installed detectors. |
+
+The reference editor, LoRA loader, and state switches need no preprocessing
+model downloads. Isolation and depth processing need the optional weights below.
+LoRA and generation checkpoints are supplied by the user. Video preparation
+needs FFmpeg on PATH; media decoding uses ComfyUI's PyAV dependency.
+
+**Example:** [TM H3 - Three Mode Studio](examples/TM%20H3%20-%20Three%20Mode%20Studio.json)
+contains editable four-, six-, and eight-step recipes. Download its JSON and
+drop it onto ComfyUI. See the example requirements at the end of this README.
+The reference editor was visually checked with Nodes 2.0 in frontend 1.58.5;
+the example's subgraph exposure and full generation remain unverified.
+
+## H3 reference manager
+
+Add **TM · H3 Reference Manager** from **Tensor Master / References**. This is a
+separate, resizable fork of MiniMaxRefPack's manager; the original node remains
+available. The prompt and compact reference tiles share Commander's H3 studio
+layout. **Expand** opens a larger studio synced with the node. The gallery reflows
+and scrolls inside the node.
+
+- Upload images, videos and audio. **Replace** keeps the reference's socket and
+  resets edits for the new source. **Reset edits** restores the original source.
+- Drag image thumbnails to reorder them. Use their checkboxes, Ctrl/Cmd-click or
+  Shift-click to select a group, then drag it together. Edits follow the images;
+  Picture tags and image sockets follow the new order. Prompt text is not rewritten.
+- **Process** opens a side-by-side original/result editor with a persistent action
+  bar. **Crop** provides aspect presets and draggable corner handles; video/audio
+  **Trim** provides in/out fields, playhead controls and range sliders. Images support
+  text-guided isolation, subject selection, background compositing and depth.
+- **Preview result** queues only that image's preparation and leaves the editor
+  open for comparison. **Save reference** applies the settings; Cancel discards
+  the draft. Normal execution applies the same preparation automatically.
+- Plug text into the **prompt** input, or type into the node. Connected text takes
+  precedence, including an empty string. **AI enhance prompt** applies to either
+  source: off returns it unchanged; on runs the selected prompt writer.
+- Connect **width**, **height** and **length_seconds** from your generation settings
+  to give the AI writer the target frame, aspect ratio and time budget. They default
+  to unspecified and do not change the downstream generation settings.
+- **Resize references to target** is off by default. Enable it to resize images
+  and video frames to the exact connected width/height, overriding the image edge
+  cap. This stretches to fit without adding a crop. Images are resized before
+  preprocessing and again after subject cropping if needed. Audio and reference
+  duration stay unchanged. Image previews use the same connected dimensions.
+- **Model & options** configures the local OpenAI-compatible endpoint or OpenRouter,
+  model ID, reasoning, system prompt and image size cap. A local endpoint needs
+  its own vision model ID. Local video is sampled as stills and audio is omitted.
+  Enhancement sends the prompt and supported media to the configured provider.
+  Prefer `OPENROUTER_API_KEY` over saving a key in a shared workflow.
+
+Wire the matching image/video/audio outputs and **prompt** into the native MiniMax
+H3 Reference to Video node. **manifest** lists the actual reference tags. Sources
+and settings save with the workflow; processed thumbnails live in ComfyUI's temp
+directory and can be regenerated. Preprocessing uses the pack's existing local
+models; the manager does not download weights.
+
+Reference loading, tagging and prompt writing are derived from Hearmeman24's MIT
+MiniMaxRefPack. Its notice is retained in `licenses/MiniMaxRefPack-LICENSE`.
 
 Offline reference processing with Grounding DINO Tiny + SAM 2.1 Tiny for
 text-guided isolation, and Depth Anything V2 Small for relative depth.
@@ -15,6 +110,29 @@ In Tensor Master, click **Process** on an image reference, choose its options,
 and **Save settings**. **Generate** processes and renders in one queued graph;
 no preview is required. An optional **Process & cache now** action prepares a
 reusable asset without starting generation. Original inputs remain available.
+
+## Solid face cover
+
+**TM · Face Cover (solid ellipse)** accepts an IMAGE batch and outputs the covered
+images plus a binary cover mask. The default RetinaFace backend reuses the installed,
+enabled **ComfyUI-AutoCropFaces** node and its local weights, running on CPU. OpenCV
+frontal/profile detection remains selectable. Choose ellipse or circle, coverage
+width/height and a hex fill color (default `#808080`). Coverage has a hard, opaque
+edge. RGB/RGBA inputs retain their dimensions, dtype, device and alpha channel.
+Increase **scale_factor** in the standalone node or **Scale factor** in the manager to
+cover hair too; `1` preserves existing coverage, while `1.5`–`2` enlarges it.
+No downloads or segmentation model are needed. Inspect results for missed faces.
+
+**number_of_faces** limits covers per image (`0` = all remaining), starting at the
+zero-based **start_index**. Choose confidence, left-to-right or largest-first order.
+RetinaFace confidence and max faces per image control detection/selection. The
+vertical **shift_factor** is centered at `0.5`; higher values move the cover upward.
+Existing saved frontal-detector settings stay unchanged; select **retinaface** to upgrade them.
+
+In the reference manager, open **Process → Prepare → Cover faces**. The same
+controls, previews and saved settings are available there. Detection uses the RGB
+reference; solid covers are applied after depth processing and before isolated
+subject cropping, so the cover stays aligned with other edits.
 
 ## Reuse and caching
 
@@ -33,13 +151,22 @@ not limited to a single GPU or disposable cloud instance.
 
 ## Installation
 
-Install this directory under ComfyUI/custom_nodes, install requirements in the
-ComfyUI environment, then run `python sync_models.py --models-dir /path/to/ComfyUI/models`.
+For optional isolation, depth, and face-parsing weights, run from this node
+pack's directory using ComfyUI's Python environment:
+
+```sh
+python sync_models.py --models-dir /path/to/ComfyUI/models
+```
+
+This explicitly downloads the pinned artifacts in `models.lock.json`. Read the
+individual model licenses before use; the face-parsing weights have separate
+non-commercial terms. Weights are not included in this repository.
 Add `ComfyUI-TensorMaster-Preprocessors` to an existing secure launcher's node
 allowlist. Keep all existing allowlist entries. Restart only when the worker is idle.
 
-Weights/configs are pinned and checksum verified. Inference is offline and does
-not download models, execute remote model code, or use API credentials.
+Weights/configs are pinned and checksum verified. Preprocessing is offline and
+does not download models or execute remote model code. Optional prompt enhancement
+sends the prompt and supported media to the selected endpoint only when enabled.
 Temporary inference models are released after each run. For isolation, no detections is an
 explicit error, never a fallback to the entire image.
 
@@ -113,3 +240,59 @@ verification. Model binaries and user reference images are not committed.
 specifies non-commercial research and educational use. These terms apply
 separately to this repository's MIT integration code. Existing isolation/depth
 models retain their licenses. See `licenses/FaceParsing-NOTICE.md`.
+
+### H3 Reference Manager in Nodes 2.0
+
+The H3 Reference Manager uses native widget visibility for Nodes 2.0 and a
+container-sized DOM panel. **Open Reference Studio** opens its full editor in a
+dialog; the existing **Expand** button opens the same editor. Workflow values,
+reference sockets, and the node ID are unchanged. After updating the frontend
+files, hard-refresh ComfyUI to load the new panel code.
+
+### State menu and synchronized switches
+
+Add **TM · State Menu** and use **Edit states…** to name your modes, for example
+`Turbo 4-step`, `Turbo 8-step`, and `Flex 6-step`. Connect its `state` output to
+several **TM · State Switch** nodes. Wire each mode's checkpoint MODEL, CLIP,
+VAE, steps, CFG, or sampler value into the matching numbered input on its own
+switch. Inputs grow as you connect them; each switch routes one type of value.
+Only the selected branch is requested. Output nodes such as Save Image on other
+branches are still independent execution targets.
+
+State numbers stay fixed when names change or entries are removed. The menu
+editor shows these numbers; keep them aligned across switches. An unconnected
+selected input reports an error. The native Autogrow interface supports up to
+100 numbered states in this version of ComfyUI.
+
+Keep the menu inside your subgraph and promote its `selected` dropdown to the
+outer controls. Edit branch nodes inside the subgraph to experiment with each
+mode. The dropdown uses a native combo widget with dynamic options; actual
+Nodes 2.0 and subgraph UI verification remains pending.
+
+### Three-mode H3 studio example
+
+Open `examples/TM H3 - Three Mode Studio.json`. The nine outer nodes contain
+the mode dropdown, shared LoRA editor, resolution, duration, seed, three editable
+subgraphs, and video output. No reference files or credentials are included.
+
+| Mode | Model | Acceleration | Sampling |
+| --- | --- | --- | --- |
+| Turbo - 4 steps | Community Ref2VA INT8 | Ref2V Turbo 4-step v0.1, strength 1 | Euler, simple schedule, video/audio shifts 12/3 |
+| Prism / Pika - 6 steps | Eros × Singularity × PikaFlex Prism2 INT8 HQ | Built into the checkpoint | LCM, fixed Pika sigmas, no extra shifts |
+| Turbo - 8 steps | Singularity Ref2VA v2 INT8 | Ref2V Turbo 8-step v1.0, strength 1 | Euler, simple schedule, video/audio shifts 12/3 |
+
+Open **Model & Recipe** to edit any checkpoint, acceleration LoRA, sampler,
+or sigma schedule. One shared state selects MODEL, SAMPLER, and SIGMAS together.
+Open **References & Prompt** to use the complete Reference Manager panel;
+all nine image, three video, three video soundtrack, and three audio outputs
+are wired internally to native H3 conditioning. Open **Sample & Decode** to
+change memory options, sampling, or VAE decoding.
+
+The mode dropdown stays outside the subgraphs in this example. The Reference
+Manager's custom panel stays inside its workspace; this example does not
+promote that panel to the outer node. Both remain editable without a combined
+generator node. Defaults are portrait 0.4 MP, five seconds, seed 42, and the
+six-step recipe. Shared LoRAs start empty. The flattened prompt passed backend
+validation for all three modes; generation and Nodes 2.0 visual checks remain
+pending. Required packs: this pack, KJNodes, VideoHelperSuite, and
+comfyui-unload-model, plus the installed H3 models named in the graph.
