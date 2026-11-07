@@ -12,10 +12,21 @@
 .tmrm-root *, .tmrm-dialog * { box-sizing:border-box; }
 .tmrm-root [hidden], .tmrm-dialog [hidden] { display:none !important; }
 .tmrm-root {
-    display:flex; flex-direction:column; gap:12px; height:100%; width:100%; max-width:100%;
+    display:flex; flex-direction:column; gap:12px; height:100%; width:calc(100% - 108px); max-width:100%;
     min-width:0; min-height:0; overflow:hidden; padding:12px; border-radius:0; background:transparent;
     container-type:inline-size;
 }
+.lg-node:has(.tmrm-root) [data-testid^="node-body-"] {
+    display:grid; grid-template-columns:minmax(0,1fr) 128px;
+}
+.lg-node:has(.tmrm-root) [data-testid^="node-body-"] > :first-child {
+    grid-column:1/-1; grid-row:1; align-self:start; z-index:2; pointer-events:none;
+}
+.lg-node:has(.tmrm-root) [data-testid^="node-body-"] > :first-child > * { pointer-events:auto; }
+.lg-node:has(.tmrm-root) .lg-node-widgets {
+    grid-column:1; grid-row:1; padding-top:80px; min-width:0;
+}
+.lg-node .tmrm-root { width:100%; }
 .tmrm-root button, .tmrm-dialog button { font:inherit; }
 .tmrm-button {
     border:1px solid var(--tm-line); border-radius:0; background:var(--tm-raised); color:var(--tm-text);

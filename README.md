@@ -244,7 +244,10 @@ models retain their licenses. See `licenses/FaceParsing-NOTICE.md`.
 ### H3 Reference Manager in Nodes 2.0
 
 The H3 Reference Manager uses native widget visibility for Nodes 2.0 and a
-container-sized DOM panel. **Open Reference Studio** opens its full editor in a
+container-sized DOM panel. The editor sits beside the output socket column
+instead of below it, keeping both the classic and Nodes 2.0 layouts compact.
+Previously saved tall nodes can be resized shorter after refreshing.
+**Open Reference Studio** opens its full editor in a
 dialog; the existing **Expand** button opens the same editor. Workflow values,
 reference sockets, and the node ID are unchanged. After updating the frontend
 files, hard-refresh ComfyUI to load the new panel code.

@@ -928,6 +928,7 @@ app.registerExtension({
                 if (w.element) w.element.style.display = "none";
             }
             const surface = buildSurface(node);
+            node.widgets_start_y = 95;
             node.addWidget("button", "Open Reference Studio", null, () => openStudio(node), { serialize: false });
             node.addDOMWidget("tm_reference_manager", "custom", surface.root, {
                 serialize: false, hideOnZoom: false,

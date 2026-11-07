@@ -94,7 +94,7 @@ node.onNodeCreated();
 for (const field of node.widgets.slice(0,saved.length)) {
     if (field.options.surfaces.vueNode !== 'never' || field.options.surfaces.canvas !== 'never' || field.options.surfaces.panel !== 'never') throw Error('internal field exposed on a rendering surface');
 }
-if (node.widgets_start_y !== undefined || node.panel.options.getHeight) throw Error('panel still depends on canvas coordinates');
+if (node.widgets_start_y !== 95 || node.panel.options.getHeight) throw Error('compact canvas offset or native panel sizing changed');
 if (node.panel.options.getMinHeight() !== 450) throw Error('panel lost native minimum height');
 const launch = node.widgets.find(widget => widget.name === 'Open Reference Studio');
 if (!launch || launch.options.serialize !== false) throw Error('missing nonserialized studio button');
