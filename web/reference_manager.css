@@ -22,7 +22,8 @@
 .lg-node:has(.tmrm-root) [data-testid^="node-body-"] > :first-child {
     grid-column:1/-1; grid-row:1; align-self:start; z-index:2; pointer-events:none;
 }
-.lg-node:has(.tmrm-root) [data-testid^="node-body-"] > :first-child > * { pointer-events:auto; }
+.lg-node:has(.tmrm-root) [data-testid^="node-body-"] > :first-child > * { pointer-events:none; }
+.lg-node:has(.tmrm-root) [data-testid^="node-body-"] > :first-child > * > * { pointer-events:auto; }
 .lg-node:has(.tmrm-root) .lg-node-widgets {
     grid-column:1; grid-row:1; padding-top:80px; min-width:0;
 }
