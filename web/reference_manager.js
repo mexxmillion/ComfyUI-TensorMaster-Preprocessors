@@ -19,11 +19,10 @@ export function parseReferences(raw) {
 }
 
 export function replaceReference(refs, index, file) {
-    // Replacement preserves the socket; source-specific edits start fresh.
-    return refs.map((ref, i) => i === index ? {
+    return refs.map((ref, i) => i !== index ? ref : ref.kind === "image" ? { ...ref, file } : {
         kind: ref.kind, file,
         ...(ref.kind === "video" ? { use_soundtrack: ref.use_soundtrack !== false } : {}),
-    } : ref);
+    });
 }
 
 export function moveImages(refs, selected, target, after = false) {
@@ -243,7 +242,7 @@ function displayFilename(file) {
     return file.split("/").pop().replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i, "");
 }
 
-function editReference(node, index, initialTab = null) {
+function editReference(node, index) {
     const source = node._tmRefs[index];
     if (!source) return;
     const tag = referenceTags(node._tmRefs).get(index);
@@ -302,21 +301,23 @@ function editReference(node, index, initialTab = null) {
     const activate = name => {
         activeTab = name;
         for (const [key, value] of panels) {
-            value.panel.hidden = key !== name;
-            value.button.setAttribute("aria-selected", String(key === name));
+            value.panel.hidden = source.kind !== "image" && key !== name;
+            value.button?.setAttribute("aria-selected", String(key === name));
         }
-        stage.classList.toggle("is-cropping", name === "Crop");
-        originalCaption.textContent = name === "Crop" ? "Original · drag to crop" : "Original";
+        const cropping = source.kind === "image" || name === "Crop";
+        stage.classList.toggle("is-cropping", cropping);
+        originalCaption.textContent = cropping ? "Original · drag to crop" : "Original";
     };
-    for (const name of source.kind === "image" ? ["Prepare", "Crop"] : source.kind === "video" ? ["Trim", "Crop"] : ["Trim"]) {
-        const tab = button(name, () => activate(name));
-        tab.setAttribute("role", "tab");
+    for (const name of source.kind === "image" ? ["Crop", "Prepare"] : source.kind === "video" ? ["Trim", "Crop"] : ["Trim"]) {
+        const tab = source.kind === "image" ? null : button(name, () => activate(name));
+        tab?.setAttribute("role", "tab");
         const panel = el("div", "tmrm-tool-panel");
-        panel.setAttribute("role", "tabpanel");
+        if (tab) panel.setAttribute("role", "tabpanel");
         panels.set(name, { button: tab, panel });
-        tabs.append(tab);
+        if (tab) tabs.append(tab);
     }
-    sidebar.append(tabs, ...Array.from(panels.values(), value => value.panel));
+    if (source.kind !== "image") sidebar.append(tabs);
+    sidebar.append(...Array.from(panels.values(), value => value.panel));
     const changed = () => {
         version++;
         status.textContent = "Unsaved changes";
@@ -383,7 +384,7 @@ function editReference(node, index, initialTab = null) {
             return [(event.clientX - bounds.left) / bounds.width, (event.clientY - bounds.top) / bounds.height];
         };
         stage.onpointerdown = event => {
-            if (activeTab !== "Crop") return;
+            if (source.kind !== "image" && activeTab !== "Crop") return;
             event.preventDefault();
             const p = point(event), rect = crop || [0, 0, 1, 1];
             const corner = event.target.dataset.corner;
@@ -585,7 +586,7 @@ function editReference(node, index, initialTab = null) {
             modal.close();
         } catch (error) { status.textContent = error.message; status.classList.add("is-error"); }
     };
-    activate(initialTab || (source.kind === "image" ? "Prepare" : "Trim"));
+    activate(source.kind === "image" ? "Prepare" : "Trim");
     modal.showModal();
 }
 

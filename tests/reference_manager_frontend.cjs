@@ -11,13 +11,16 @@ vm.createContext(context);
 vm.runInContext(source, context);
 vm.runInContext(`
 const refs = [
-    {kind: 'image', file: 'a', crop: [0, 0, .5, 1], preprocess: {depth: true}},
+    {kind: 'image', file: 'a', crop: [0, 0, .5, 1], preprocess: {depth: true, face_cover:true, face_size:1.5}},
     {kind: 'image', file: 'b'},
     {kind: 'video', file: 'v', use_soundtrack: false},
     {kind: 'audio', file: 's'},
 ];
 const replaced = replaceReference(refs, 0, 'new');
-if (replaced[0].file !== 'new' || replaced[1] !== refs[1] || replaced[0].crop || replaced[0].preprocess) throw Error('replacement changed slots or retained old edits');
+if (replaced[0].file !== 'new' || replaced[1] !== refs[1] || JSON.stringify(replaced[0].crop) !== JSON.stringify(refs[0].crop) || JSON.stringify(replaced[0].preprocess) !== JSON.stringify(refs[0].preprocess)) throw Error('image replacement lost its slot, crop, depth, or face-cover settings');
+if (refs[0].file !== 'a' || previewKey(replaced[0]) === previewKey(refs[0])) throw Error('replacement mutated the source or retained its preview key');
+const replacedVideo = replaceReference([{kind:'video',file:'old',trim:[1,2],crop:[0,0,.5,1],use_soundtrack:false}],0,'new');
+if (replacedVideo[0].trim || replacedVideo[0].crop || replacedVideo[0].use_soundtrack !== false) throw Error('video replacement behavior changed');
 if (referenceTags(refs).get(1) !== '<Picture 2>' || referenceTags(refs).get(3) !== '<Audio 1>') throw Error('incorrect tags');
 if (!viewUrl('tm-references/file.png').includes('subfolder=tm-references')) throw Error('incorrect nested input URL');
 if (parseReferences(JSON.stringify({references: refs})).length !== 4) throw Error('state roundtrip failed');

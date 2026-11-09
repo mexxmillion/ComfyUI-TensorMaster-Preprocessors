@@ -57,13 +57,16 @@ available. The prompt and compact reference tiles share Commander's H3 studio
 layout. **Expand** opens a larger studio synced with the node. The gallery reflows
 and scrolls inside the node.
 
-- Upload images, videos and audio. **Replace** keeps the reference's socket and
-  resets edits for the new source. **Reset edits** restores the original source.
+- Upload images, videos and audio. Replacing an image keeps its socket, crop,
+  depth, face-cover, and isolation settings. Crop uses the same relative area
+  on the new image. **Reset edits** clears those settings when you want to start
+  fresh. Replacing video or audio resets its source-specific edits.
 - Drag image thumbnails to reorder them. Use their checkboxes, Ctrl/Cmd-click or
   Shift-click to select a group, then drag it together. Edits follow the images;
   Picture tags and image sockets follow the new order. Prompt text is not rewritten.
 - **Process** opens a side-by-side original/result editor with a persistent action
-  bar. **Crop** provides aspect presets and draggable corner handles; video/audio
+  bar. Image crop and preparation controls share one page: drag on the original
+  image to crop, or use the aspect presets and corner handles. Video/audio
   **Trim** provides in/out fields, playhead controls and range sliders. Images support
   text-guided isolation, subject selection, background compositing and depth.
 - **Preview result** queues only that image's preparation and leaves the editor
