@@ -89,6 +89,17 @@ and scrolls inside the node.
   Enhancement sends the prompt and supported media to the configured provider.
   Prefer `OPENROUTER_API_KEY` over saving a key in a shared workflow.
 
+For the same managed VLM as Prompt Director, install and enable
+[ComfyUI-PromptDirector](https://github.com/mexxmillion/ComfyUI-PromptDirector), then choose **Local Gemma 4 12B (Director)** in
+**Model & options → Provider** and enable **AI enhance prompt**. Install the
+Gemma 4 12B QAT Uncensored Balanced Q4_K_M weights and BF16 vision projector
+through Prompt Director Settings first. The Reference Manager reuses Director's
+`llama-server` configuration and lifecycle: local startup, inference, then release.
+No API key or manually running localhost server is needed. This provider uses
+the Reference Manager system prompt and its edited images; videos are sampled
+as stills and audio is omitted. Other providers keep their existing settings.
+The integration does not download missing models automatically.
+
 Wire the matching image/video/audio outputs and **prompt** into the native MiniMax
 H3 Reference to Video node. **manifest** lists the actual reference tags. Sources
 and settings save with the workflow; processed thumbnails live in ComfyUI's temp

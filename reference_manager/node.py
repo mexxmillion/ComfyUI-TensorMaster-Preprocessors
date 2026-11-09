@@ -13,7 +13,7 @@ from comfy_api.latest import io
 from ..nodes import TMCompositeReference, TMIsolateReference
 from ..prepare import TMDepthReference
 from ..face_cover import face_cover_mask, apply_face_cover
-from . import media, prompt as writer, refs
+from . import director, media, prompt as writer, refs
 
 
 def input_path(name):
@@ -94,7 +94,7 @@ class TMH3ReferenceManager(io.ComfyNode):
                 io.String.Input('references_json', default='{"references": []}', multiline=True, dynamic_prompts=False),
                 io.String.Input('direction', default='', multiline=True, dynamic_prompts=False),
                 io.Boolean.Input('ai_enhance', default=False),
-                io.Combo.Input('prompt_provider', options=['local', 'openrouter'], default='local'),
+                io.Combo.Input('prompt_provider', options=['local', 'openrouter', director.PROVIDER], default='local'),
                 io.String.Input('model', default=writer.DEFAULT_MODEL),
                 io.String.Input('api_base', default='http://localhost:1234/v1'),
                 io.String.Input('api_key', default=''),
@@ -175,10 +175,14 @@ class TMH3ReferenceManager(io.ComfyNode):
         text = direction if prompt is None else prompt
         if ai_enhance:
             try:
-                text = writer.write_prompt(references=refs.ReferenceSet.from_obj(effective),
-                    input_dir=folder_paths.get_input_directory(), direction=text, provider=prompt_provider,
-                    model=model, api_base=api_base, api_key=api_key, reasoning_effort=reasoning_effort,
-                    system_prompt=system_prompt, width=width, height=height, length_seconds=length_seconds)
+                references = refs.ReferenceSet.from_obj(effective)
+                if prompt_provider == director.PROVIDER:
+                    text = director.write_prompt(text, outputs, references, system_prompt, width, height, length_seconds)
+                else:
+                    text = writer.write_prompt(references=references,
+                        input_dir=folder_paths.get_input_directory(), direction=text, provider=prompt_provider,
+                        model=model, api_base=api_base, api_key=api_key, reasoning_effort=reasoning_effort,
+                        system_prompt=system_prompt, width=width, height=height, length_seconds=length_seconds)
             except writer.PromptError as error:
                 message = str(error)
                 if api_key:

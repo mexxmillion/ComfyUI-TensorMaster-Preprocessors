@@ -3,8 +3,9 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import numpy as np
 from PIL import Image
@@ -21,6 +22,48 @@ Node = manager.TMH3ReferenceManager
 
 
 class ReferenceManagerTests(unittest.TestCase):
+    def test_managed_gemma_receives_edited_references_and_shared_settings(self):
+        entry = self.image()
+        entry.update(crop=[0.5, 0, 0.5, 1], preprocess={'depth': True})
+        edited = torch.full((1, 10, 10, 3), 0.4)
+        model = self.root / 'model.gguf'
+        projector = self.root / 'projector.gguf'
+        model.touch(); projector.touch()
+        director_node = Mock(__module__='test_director.nodes')
+        director_node.execute.return_value = manager.io.NodeOutput('Gemma enhanced')
+        models = Mock()
+        models.resolve_local_model.return_value = SimpleNamespace(model_path=model, mmproj_path=projector)
+        with patch.dict(manager.director.nodes.NODE_CLASS_MAPPINGS, {'PromptDirector': director_node}), \
+             patch.object(manager.director, 'import_module', return_value=models), \
+             patch.object(manager.TMDepthReference, 'depth', return_value=(edited,)), \
+             patch.object(manager.writer, 'write_prompt') as remote:
+            result = self.run_node([entry], prompt='Connected direction', ai_enhance=True,
+                prompt_provider=manager.director.PROVIDER, width=864, height=480, length_seconds=6.5)
+        self.assertEqual(result[18], 'Gemma enhanced')
+        remote.assert_not_called()
+        args = director_node.execute.call_args.kwargs
+        self.assertIs(args['reference_images']['image_1'], result[0])
+        self.assertEqual(args['prompt'], 'Connected direction')
+        self.assertEqual((args['width'], args['height'], args['duration']), (864, 480, 6.5))
+        self.assertEqual(args['local_model'], manager.director.MODEL)
+        self.assertEqual(args['prompt_provider'], 'local model')
+        self.assertFalse(args['local_llama_thinking'])
+        self.assertTrue(args['fail_on_error'])
+        self.assertIn('<Picture 1>', args['reference_context'])
+
+    def test_managed_gemma_missing_pack_or_weights_has_actionable_error(self):
+        with patch.dict(manager.director.nodes.NODE_CLASS_MAPPINGS, {'PromptDirector': None}):
+            with self.assertRaisesRegex(ValueError, 'Install and enable ComfyUI-PromptDirector'):
+                self.run_node(ai_enhance=True, prompt_provider=manager.director.PROVIDER)
+        director_node = Mock(__module__='test_director.nodes')
+        models = Mock()
+        models.resolve_local_model.return_value = SimpleNamespace(model_path=self.root / 'missing.gguf', mmproj_path=None)
+        with patch.dict(manager.director.nodes.NODE_CLASS_MAPPINGS, {'PromptDirector': director_node}), \
+             patch.object(manager.director, 'import_module', return_value=models):
+            with self.assertRaisesRegex(ValueError, 'Install the Gemma 4 12B model'):
+                self.run_node(ai_enhance=True, prompt_provider=manager.director.PROVIDER)
+        director_node.execute.assert_not_called()
+
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)

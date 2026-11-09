@@ -204,7 +204,7 @@ function openSettings(node) {
         ["system_prompt", "System prompt override", "textarea"],
     ]) {
         const w = widget(node, name);
-        const control = type === "provider" ? select(["local", "openrouter"], w.value)
+        const control = type === "provider" ? select(["local", "openrouter", "Local Gemma 4 12B (Director)"], w.value)
             : type === "reasoning" ? select(["none", "low", "medium", "high"], w.value)
             : type === "textarea" ? el("textarea") : input(type, w.value);
         if (type === "textarea") control.value = w.value;
@@ -214,7 +214,15 @@ function openSettings(node) {
         if (name === "system_prompt") control.parentElement.classList.add("tmrm-span-all");
         controls.push([w, control]);
     }
-    body.append(grid, el("p", "tmrm-hint", "Enhancement sends your prompt and references to this provider. Local servers receive images and video stills; audio is omitted. Keys entered here save in the workflow."));
+    const updateProvider = () => {
+        const managed = controls.find(([w]) => w.name === "prompt_provider")[1].value === "Local Gemma 4 12B (Director)";
+        for (const [w, control] of controls) {
+            if (["model", "api_base", "api_key", "reasoning_effort"].includes(w.name)) control.parentElement.hidden = managed;
+        }
+    };
+    controls.find(([w]) => w.name === "prompt_provider")[1].onchange = updateProvider;
+    updateProvider();
+    body.append(grid, el("p", "tmrm-hint", "Local Gemma uses Prompt Director's installed model, projector, and llama-server configuration; no API key is needed. Local models receive images and video stills; audio is omitted. Other providers receive your prompt and supported references. Keys entered here save in the workflow."));
     footer.append(el("span", "tmrm-hint", "Connected prompts use these settings too."), button("Cancel", () => modal.close()),
         primary("Save settings", () => {
             const oldEdge = widget(node, "max_reference_edge").value;

@@ -66,3 +66,25 @@ assert.equal(saved.preprocess.face_size, 1.5);
 saved.crop.forEach((value, index) => assert.ok(Math.abs(value - [0.1, 0.1, 0.7, 0.6][index]) < 1e-9));
 assert.equal(context.testNode._tmDialogs.size, 0);
 console.log('Image crop and preparation share one page; dragging and saving preserve depth and face-cover settings.');
+
+vm.runInContext(`
+const settingsNode = {
+    widgets: Object.entries({prompt_provider:'Local Gemma 4 12B (Director)', model:'existing-model', api_base:'http://localhost:1234/v1',
+        api_key:'', reasoning_effort:'medium', max_reference_edge:2048, system_prompt:''}).map(([name,value])=>({name,value})),
+    _tmDialogs:new Set(), _tmPreviews:new Map(), _tmSurfaces:new Set(),
+};
+openSettings(settingsNode);
+globalThis.settingsNode = settingsNode;
+`, context);
+const settings = document.body.children.at(-1);
+const settingsElements = walk(settings);
+const setting = label => settingsElements.find(element => element.tag === 'label' && element.children[0]?.textContent === label);
+assert.ok(setting('Model ID').hidden && setting('Local API base').hidden && setting('API key').hidden && setting('Reasoning').hidden);
+assert.ok(!setting('Image edge limit · 0 for original').hidden);
+const provider = setting('Provider').children[1];
+provider.value = 'openrouter'; provider.onchange();
+assert.ok(!setting('API key').hidden);
+provider.value = 'Local Gemma 4 12B (Director)'; provider.onchange();
+settingsElements.find(element => element.tag === 'button' && element.textContent === 'Save settings').onclick();
+assert.equal(context.settingsNode.widgets.find(widget => widget.name === 'prompt_provider').value, 'Local Gemma 4 12B (Director)');
+console.log('Managed Gemma settings hide unused endpoint fields and save the selected provider.');
