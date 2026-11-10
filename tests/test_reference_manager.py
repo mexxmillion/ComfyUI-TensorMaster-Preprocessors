@@ -1,4 +1,5 @@
 import importlib.util
+import asyncio
 import json
 from pathlib import Path
 import sys
@@ -22,6 +23,29 @@ Node = manager.TMH3ReferenceManager
 
 
 class ReferenceManagerTests(unittest.TestCase):
+    def test_real_director_accepts_reference_manager_format_without_shot_validation(self):
+        pack = ROOT.parent / 'ComfyUI-PromptDirector'
+        if not pack.is_dir():
+            self.skipTest('Optional Prompt Director integration is not installed.')
+        self.assertTrue(asyncio.run(manager.director.nodes.load_custom_node(str(pack))))
+        cls = manager.director.nodes.NODE_CLASS_MAPPINGS['PromptDirector']
+        director_module = importlib.import_module(cls.__module__)
+        profile = director_module.resolve_local_model(manager.director.MODEL, True)
+        if not all(path.is_file() for path in (profile.model_path, profile.mmproj_path)):
+            self.skipTest('Optional local Gemma weights are not installed.')
+        generated = 'subject_definitions:\n<Subject 1> is the dancer in <Picture 1>.\nsummary:\nA continuous studio dance.'
+        with patch.object(director_module, 'run_managed_server', return_value=([generated], 'released')) as run, \
+             patch.object(director_module, 'download_local_model'), \
+             patch.object(director_module, 'validate_output', side_effect=AssertionError('Built-in H3 validator must not run')):
+            result = self.run_node([self.image()], direction='A studio dance.', ai_enhance=True,
+                prompt_provider=manager.director.PROVIDER, width=864, height=480, length_seconds=6.5)
+            self.assertEqual(result[18], generated)
+            self.assertEqual(run.call_args.kwargs['validator'](generated), [])
+            self.assertIn('864 x 480', run.call_args.kwargs['user_prompt'])
+            run.return_value = ([''], 'released')
+            with self.assertRaisesRegex(ValueError, 'LLM returned no text'):
+                self.run_node(ai_enhance=True, direction='A studio dance.', prompt_provider=manager.director.PROVIDER)
+
     def test_post_ai_flags_independently_route_depth_and_cover_for_each_provider(self):
         for provider in ('local', manager.director.PROVIDER):
             for post_depth in (False, True):
@@ -100,6 +124,9 @@ class ReferenceManagerTests(unittest.TestCase):
         self.assertEqual((args['width'], args['height'], args['duration']), (864, 480, 6.5))
         self.assertEqual(args['local_model'], manager.director.MODEL)
         self.assertEqual(args['prompt_provider'], 'local model')
+        self.assertEqual(args['mode'], 'Custom system prompt')
+        self.assertIn('864 x 480', args['reference_context'])
+        self.assertIn('6.500 seconds', args['reference_context'])
         self.assertFalse(args['local_llama_thinking'])
         self.assertTrue(args['fail_on_error'])
         self.assertIn('<Picture 1>', args['reference_context'])

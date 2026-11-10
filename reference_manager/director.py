@@ -28,11 +28,12 @@ def write_prompt(direction, outputs, references, system_prompt, width, height, l
     manifest = [tagged.to_dict() for tagged in references.assign_tags()]
     try:
         result = director.execute(
-            prompt=direction, mode='MiniMax H3 — Reference Manager', profile='', creativity='Balanced',
+            prompt=direction, mode='Custom system prompt', profile='', creativity='Balanced',
             duration=length_seconds, seed=-1, max_attempts=1, width=width, height=height,
             local_llama_thinking=False, prompt_provider='local model', local_model=MODEL,
             reference_images=images, reference_videos=videos, reference_audios=audios,
-            reference_context=json.dumps(manifest, ensure_ascii=False),
+            reference_context='\n'.join(writer._target_format_lines(width, height, length_seconds))
+                + '\nReference manifest:\n' + json.dumps(manifest, ensure_ascii=False),
             custom_system_prompt=system_prompt.strip() or writer._read_system_prompt(), fail_on_error=True,
         )
     except (OSError, RuntimeError, ValueError) as error:
