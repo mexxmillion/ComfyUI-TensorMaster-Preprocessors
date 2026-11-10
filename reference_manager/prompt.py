@@ -689,20 +689,39 @@ def _completion_of(resp, ep=None) -> str:
         raise PromptError(f"{who} returned {resp.status_code}: {_short_reason(resp)}")
 
     try:
-        choice = resp.json()["choices"][0]["message"]
-        message = choice["content"]
-    except (ValueError, KeyError, IndexError, TypeError):
+        data = resp.json()
+    except ValueError:
         raise PromptError(f"{who} response was malformed") from None
-
+    if not isinstance(data, dict):
+        raise PromptError(f"{who} response was malformed")
+    error = data.get('error')
+    if error:
+        detail = error.get('message', 'Provider error') if isinstance(error, dict) else str(error)
+        code = error.get('code') if isinstance(error, dict) else None
+        raise PromptError(f"{who} provider error{f' ({code})' if code is not None else ''}: {str(detail)[:200]}")
+    try:
+        result = data['choices'][0]
+        choice = result['message']
+        message = choice.get('content')
+    except (KeyError, IndexError, TypeError, AttributeError):
+        raise PromptError(f"{who} response was malformed") from None
+    finish = result.get('finish_reason')
+    if choice.get('refusal') or finish == 'content_filter':
+        raise PromptError(f"{who} provider declined or filtered the request: {str(choice.get('refusal') or 'content_filter')[:200]}")
+    if finish == 'error':
+        raise PromptError(f"{who} provider failed while generating the answer (finish_reason=error).")
+    if isinstance(message, list):
+        message = ''.join(part['text'] for part in message if isinstance(part, dict)
+                          and part.get('type') == 'text' and isinstance(part.get('text'), str))
     if not isinstance(message, str) or not message.strip():
-
-
-        if isinstance(choice, dict) and (choice.get("reasoning_content") or "").strip():
+        if choice.get('reasoning_content') or choice.get('reasoning') or choice.get('reasoning_details'):
             raise PromptError(
-                f"{who} returned only reasoning and no answer: the model used its whole "
-                "output budget thinking. Raise the model's token limit, turn its "
-                "reasoning down, or use a non-reasoning model."
+                f"{who} returned reasoning but no final answer. Lower reasoning effort "
+                "or increase the model's output budget."
             )
-        raise PromptError(f"{who} returned an empty completion")
+        details = ', '.join(f'{key}={value}' for key, value in (
+            ('finish_reason', finish), ('native_finish_reason', result.get('native_finish_reason')),
+            ('request_id', data.get('id'))) if value is not None)
+        raise PromptError(f"{who} returned an empty completion{f' ({details})' if details else ''}. Check this request in the provider's activity log.")
 
     return message.strip()

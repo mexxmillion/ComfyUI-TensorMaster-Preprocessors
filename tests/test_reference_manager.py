@@ -23,6 +23,27 @@ Node = manager.TMH3ReferenceManager
 
 
 class ReferenceManagerTests(unittest.TestCase):
+    def test_openrouter_response_normalization_and_error_details(self):
+        def response(data):
+            return Mock(status_code=200, json=Mock(return_value=data))
+
+        for content, expected in [(' answer ', 'answer'),
+            ([{'type': 'text', 'text': 'first '}, {'type': 'text', 'text': 'second'}], 'first second')]:
+            result = manager.writer._completion_of(response({'choices': [{'message': {'content': content}, 'finish_reason': 'stop'}]}))
+            self.assertEqual(result, expected)
+        for data, error in [
+            ({'error': {'code': 502, 'message': 'Upstream failed'}}, r'provider error \(502\): Upstream failed'),
+            ({'choices': [{'message': {'content': None}, 'finish_reason': 'content_filter'}]}, 'declined or filtered'),
+            ({'choices': [{'message': {'refusal': 'Provider refused'}, 'finish_reason': 'stop'}]}, 'Provider refused'),
+            ({'choices': [{'message': {'content': ''}, 'finish_reason': 'error'}]}, 'provider failed'),
+            ({'choices': [{'message': {'content': '', 'reasoning_details': [{'text': 'Thinking'}]}}]}, 'reasoning but no final answer'),
+            ({'id': 'test-request', 'choices': [{'message': {'content': ''}, 'finish_reason': 'stop', 'native_finish_reason': 'SAFETY'}]},
+             'finish_reason=stop, native_finish_reason=SAFETY, request_id=test-request'),
+            ({'choices': []}, 'response was malformed'),
+        ]:
+            with self.subTest(data=data), self.assertRaisesRegex(manager.writer.PromptError, error):
+                manager.writer._completion_of(response(data))
+
     def test_real_director_accepts_reference_manager_format_without_shot_validation(self):
         pack = ROOT.parent / 'ComfyUI-PromptDirector'
         if not pack.is_dir():
