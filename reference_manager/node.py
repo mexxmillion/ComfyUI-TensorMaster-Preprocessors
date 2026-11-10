@@ -44,14 +44,15 @@ def reference_entries(raw):
         if set(options) - {'isolate', 'depth', 'invert_depth', 'text', 'confidence', 'selection', 'background', 'crop_subject',
                            'face_cover', 'face_detector', 'face_shape', 'face_color', 'face_scale_x', 'face_scale_y',
                            'face_neighbors', 'face_min_size', 'face_size', 'face_number', 'face_start_index',
-                           'face_max_faces', 'face_confidence', 'face_order', 'face_shift'}:
+                           'face_max_faces', 'face_confidence', 'face_order', 'face_shift',
+                           'depth_post_ai', 'face_cover_post_ai'}:
             raise ValueError('Unknown reference preprocessing setting.')
         if options.get('background', 'gray') not in ('gray', 'white', 'black'):
             raise ValueError('Choose a gray, white or black background.')
     return entries, reference_set
 
 
-def preprocess_image(image, options):
+def _preprocess_images(image, options, ai_enhance):
     isolate, depth = options.get('isolate', False), options.get('depth', False)
     cover = None
     if options.get('face_cover', False):
@@ -64,18 +65,24 @@ def preprocess_image(image, options):
         rgba, mask = TMIsolateReference().isolate(image, options.get('text', 'person'),
             options.get('confidence', 0.25), options.get('selection', 'best'))
     if depth:
-        image = TMDepthReference().depth(image, options.get('invert_depth', False))[0]
+        depth_image = TMDepthReference().depth(image, options.get('invert_depth', False))[0]
+
+    def compose(use_depth, use_cover):
+        result = depth_image if use_depth else image
         if isolate:
-            rgba = torch.cat((image * mask.unsqueeze(-1), mask.unsqueeze(-1)), dim=-1)
-    if cover is not None:
+            result = torch.cat((result * mask.unsqueeze(-1), mask.unsqueeze(-1)), dim=-1) if use_depth else rgba
+        if use_cover:
+            result = apply_face_cover(result, cover, options.get('face_color', '#808080'))
         if isolate:
-            rgba = apply_face_cover(rgba, cover, options.get('face_color', '#808080'))
-        else:
-            image = apply_face_cover(image, cover, options.get('face_color', '#808080'))
-    if isolate:
-        image = TMCompositeReference().composite(rgba, options.get('background', 'gray'),
-                                                options.get('crop_subject', False))[0]
-    return image
+            result = TMCompositeReference().composite(result, options.get('background', 'gray'),
+                                                     options.get('crop_subject', False))[0]
+        return result
+
+    image_out = compose(depth, cover is not None)
+    post_depth = depth and options.get('depth_post_ai', False)
+    post_cover = cover is not None and options.get('face_cover_post_ai', False)
+    ai_image = compose(depth and not post_depth, cover is not None and not post_cover) if ai_enhance and (post_depth or post_cover) else image_out
+    return image_out, ai_image
 
 
 def resize_reference(image, width, height):
@@ -139,6 +146,7 @@ class TMH3ReferenceManager(io.ComfyNode):
         outputs = refs.empty_outputs()
         previews = []
         effective = []
+        ai_images = {}
         # Preserve grouping exactly as the native H3 reference sockets consume it.
         ordered = [entry for kind in refs.KINDS for entry in entries if entry['kind'] == kind]
         temp = Path(folder_paths.get_temp_directory()) / 'tm-references'
@@ -151,14 +159,21 @@ class TMH3ReferenceManager(io.ComfyNode):
                 image = media.load_image(path, crop=ref.crop, max_edge=0 if resize_references else max_reference_edge)
                 if resize_references:
                     image = resize_reference(image, width, height)
-                image = preprocess_image(image, entry.get('preprocess', {}))
+                image, ai_image = _preprocess_images(image, entry.get('preprocess', {}), ai_enhance)
                 if resize_references:
+                    same_image = ai_image is image
                     image = resize_reference(image, width, height)
-                outputs[refs.slot_index(f'image_{tagged.slot}')] = image
+                    ai_image = image if same_image else resize_reference(ai_image, width, height)
+                slot = refs.slot_index(f'image_{tagged.slot}')
+                outputs[slot] = image
+                if ai_enhance:
+                    ai_images[slot] = ai_image
                 filename = f'{uuid4().hex}.png'
                 Image.fromarray((image[0].cpu().numpy().clip(0, 1) * 255).round().astype('uint8')).save(temp / filename)
                 previews.append({'source': entry, 'filename': filename, 'subfolder': 'tm-references', 'type': 'temp'})
-                # The prompt writer sees exactly the edited reference sent to H3.
+                if ai_enhance and ai_image is not image:
+                    filename = f'{uuid4().hex}.png'
+                    Image.fromarray((ai_image[0].cpu().numpy().clip(0, 1) * 255).round().astype('uint8')).save(temp / filename)
                 effective_ref = {'kind': 'image', 'file': str(temp / filename)}
             elif ref.kind == 'video':
                 frames, audio = media.load_video(path, crop=ref.crop, trim=ref.trim)
@@ -177,7 +192,10 @@ class TMH3ReferenceManager(io.ComfyNode):
             try:
                 references = refs.ReferenceSet.from_obj(effective)
                 if prompt_provider == director.PROVIDER:
-                    text = director.write_prompt(text, outputs, references, system_prompt, width, height, length_seconds)
+                    ai_outputs = outputs.copy()
+                    for slot, image in ai_images.items():
+                        ai_outputs[slot] = image
+                    text = director.write_prompt(text, ai_outputs, references, system_prompt, width, height, length_seconds)
                 else:
                     text = writer.write_prompt(references=references,
                         input_dir=folder_paths.get_input_directory(), direction=text, provider=prompt_provider,

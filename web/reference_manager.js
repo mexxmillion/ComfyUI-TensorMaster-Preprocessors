@@ -439,11 +439,16 @@ function editReference(node, index) {
         const inversion = toggle("Invert depth", options.invert_depth, "Swap near and far.");
         controls.invert_depth = inversion.control;
         const depthOptions = el("div", "tmrm-tool-options");
-        depthOptions.append(inversion.row);
+        const postDepth = toggle("Post AI", options.depth_post_ai, "Apply depth only to the MiniMax reference; AI sees the image without depth.");
+        controls.depth_post_ai = postDepth.control;
+        depthOptions.append(postDepth.row, inversion.row);
         prepare.append(depth.row, depthOptions);
         const faceCover = toggle("Cover faces", options.face_cover, "Solid circles or ellipses over detected faces.");
         controls.face_cover = faceCover.control;
         const faceOptions = el("div", "tmrm-tool-options");
+        const postCover = toggle("Post AI", options.face_cover_post_ai, "Cover faces only for MiniMax; AI can see the uncovered faces.");
+        controls.face_cover_post_ai = postCover.control;
+        faceOptions.append(postCover.row);
         controls.face_detector = field(faceOptions, "Face detection", select(["retinaface", "frontal", "frontal + profile"], options.face_detector || "retinaface"));
         const selection = el("div", "tmrm-two-columns");
         controls.face_number = field(selection, "Number of faces · 0 = all", input("number", options.face_number ?? 0));

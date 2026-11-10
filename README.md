@@ -72,6 +72,11 @@ and scrolls inside the node.
 - **Preview result** queues only that image's preparation and leaves the editor
   open for comparison. **Save reference** applies the settings; Cancel discards
   the draft. Normal execution applies the same preparation automatically.
+- Depth and face cover each have an independent **Post AI** switch. When on,
+  that effect is omitted from the image seen by the prompt enhancer, but remains
+  applied in the generation preview and MiniMax output. Crop and isolation still
+  apply to both views. Both switches default off to preserve existing workflows.
+  When AI enhancement is off, MiniMax still receives the processed image.
 - Plug text into the **prompt** input, or type into the node. Connected text takes
   precedence, including an empty string. **AI enhance prompt** applies to either
   source: off returns it unchanged; on runs the selected prompt writer.

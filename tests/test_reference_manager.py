@@ -22,6 +22,59 @@ Node = manager.TMH3ReferenceManager
 
 
 class ReferenceManagerTests(unittest.TestCase):
+    def test_post_ai_flags_independently_route_depth_and_cover_for_each_provider(self):
+        for provider in ('local', manager.director.PROVIDER):
+            for post_depth in (False, True):
+                for post_cover in (False, True):
+                    with self.subTest(provider=provider, depth_post=post_depth, cover_post=post_cover):
+                        entry = self.image()
+                        entry.update(crop=[0, 0, 0.5, 1], preprocess={'depth': True, 'face_cover': True,
+                            'depth_post_ai': post_depth, 'face_cover_post_ai': post_cover, 'face_color': '#000000'})
+                        depth = torch.full((1, 10, 10, 3), 0.25)
+                        cover = torch.zeros((1, 10, 10)); cover[:, 2:6, 2:6] = 1
+                        with patch.object(manager, 'face_cover_mask', return_value=cover) as detect, \
+                             patch.object(manager.TMDepthReference, 'depth', return_value=(depth,)) as infer, \
+                             patch.object(manager.writer, 'write_prompt', return_value='enhanced') as writer, \
+                             patch.object(manager.director, 'write_prompt', return_value='enhanced') as director:
+                            result = self.run_node([entry], ai_enhance=True, prompt_provider=provider)
+                        infer.assert_called_once(); detect.assert_called_once()
+                        expected_generation = depth.clone(); expected_generation[cover > 0] = 0
+                        self.assertTrue(torch.equal(result[0], expected_generation))
+                        expected_ai = depth.clone()
+                        if post_depth:
+                            expected_ai.zero_(); expected_ai[..., 0] = 1
+                        if not post_cover:
+                            expected_ai[cover > 0] = 0
+                        if provider == manager.director.PROVIDER:
+                            self.assertTrue(torch.equal(director.call_args.args[1][0], expected_ai))
+                        else:
+                            ai_file = Path(writer.call_args.kwargs['references'].references[0].file)
+                            np.testing.assert_array_equal(np.array(Image.open(ai_file)), (expected_ai[0].numpy() * 255).round().astype('uint8'))
+                        preview = result.ui['tm_reference_previews'][0]
+                        preview_file = self.root / 'temp' / preview['subfolder'] / preview['filename']
+                        np.testing.assert_array_equal(np.array(Image.open(preview_file)), (expected_generation[0].numpy() * 255).round().astype('uint8'))
+
+    def test_post_ai_preserves_isolation_and_still_processes_without_enhancement(self):
+        entry = self.image()
+        entry['preprocess'] = {'isolate': True, 'depth': True, 'depth_post_ai': True, 'background': 'white'}
+        mask = torch.zeros((1, 10, 20)); mask[:, :, :10] = 1
+        rgb = torch.zeros((1, 10, 20, 3)); rgb[..., 0] = 1
+        rgba = torch.cat((rgb * mask.unsqueeze(-1), mask.unsqueeze(-1)), -1)
+        for enhance in (False, True):
+            with patch.object(manager.TMIsolateReference, 'isolate', return_value=(rgba, mask)) as isolate, \
+                 patch.object(manager.TMDepthReference, 'depth', return_value=(torch.full_like(rgb, 0.25),)) as depth, \
+                 patch.object(manager.director, 'write_prompt', return_value='enhanced') as director:
+                result = self.run_node([entry], ai_enhance=enhance, prompt_provider=manager.director.PROVIDER)
+            isolate.assert_called_once(); depth.assert_called_once()
+            self.assertTrue((result[0][:, :, :10] == 0.25).all())
+            self.assertTrue((result[0][:, :, 10:] == 1).all())
+            if enhance:
+                ai_image = director.call_args.args[1][0]
+                self.assertTrue(torch.equal(ai_image[:, :, :10], rgb[:, :, :10]))
+                self.assertTrue((ai_image[:, :, 10:] == 1).all())
+            else:
+                director.assert_not_called()
+
     def test_managed_gemma_receives_edited_references_and_shared_settings(self):
         entry = self.image()
         entry.update(crop=[0.5, 0, 0.5, 1], preprocess={'depth': True})
